@@ -292,10 +292,10 @@ function dayHtml(sim){
   var sign;
   if(n===0){
     sign='<div class="sign"><p class="s-top">Noch offen</p><p class="s-big">Niemand eingetragen</p><p class="s-sub">Sobald sich zwei oder mehr eintragen, steht hier, wer fährt.</p></div>';
-  }else if(n===1){
-    sign='<div class="sign"><p class="s-top">Einzelfahrt</p><p class="s-big">'+esc(nm(info.driver))+' fährt allein</p><p class="s-sub">Einzelfahrten zählen nicht für die Reihenfolge.</p></div>';
   }else if(info.alone){
     sign='<div class="sign"><p class="s-top">Noch offen</p><p class="s-big">Nur '+esc(nm(info.members[0]))+' eingetragen</p><p class="s-sub">'+esc(nm(info.members[0]))+' fährt nicht selbst. Es braucht noch jemanden, der fährt.</p></div>';
+  }else if(n===1){
+    sign='<div class="sign"><p class="s-top">Einzelfahrt</p><p class="s-big">'+esc(nm(info.driver))+' fährt allein</p><p class="s-sub">Einzelfahrten zählen nicht für die Reihenfolge.</p></div>';
   }else if(info.nobody){
     sign='<div class="sign"><p class="s-top">Fahrer</p><p class="s-big">Niemand kann fahren</p><p class="s-sub">Keiner der Eingetragenen kann an diesem Tag fahren.</p></div>';
   }else{
