@@ -105,6 +105,9 @@ td.r,th.r{text-align:right;padding-right:0}
 
 .form{display:grid;gap:10px;margin-top:12px}
 .form label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:end}
+.form label.chk{display:flex;color:var(--ink);font-size:15px}
+.form input[type=checkbox]{min-height:0}
 .form input{min-height:46px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
 .note{border:1px dashed var(--line);border-radius:10px;padding:12px 14px;color:var(--muted);font-size:14px}
 :root{--surface2:#F3F6FC;--soft:#EBF0F9;--hero-a:#1769D1;--hero-b:#0A3777;--hero-ink:#FFFFFF;--glow:rgba(15,76,154,.20);--shadow:0 1px 2px rgba(20,32,58,.06),0 12px 28px -16px rgba(20,32,58,.35)}
@@ -158,7 +161,7 @@ var KM=20, N=5, L100=6.7, PRICE=2.20, BEER=4.50, POLL_MS=15000;
 var API=(window.FG_API||'').trim();
 function zero(v){var a=[];for(var i=0;i<N;i++)a.push(v);return a;}
 var $=function(s){return document.querySelector(s);};
-var names=null, loaded=false, loadFailed=false;
+var names=null, noDrive=[], loaded=false, loadFailed=false;
 var entries=[], overrides={};
 var store={}, storeJson='', pending=0, busyQ=Promise.resolve();
 var me=null;
@@ -183,6 +186,7 @@ function membersOf(mask){var r=[];for(var i=0;i<N;i++)if(mask&(1<<i))r.push(i);r
 function groupMasks(){var r=[];for(var m=1;m<(1<<N);m++){if(membersOf(m).length>=2)r.push(m);}
   r.sort(function(a,b){return membersOf(b).length-membersOf(a).length||a-b;});return r;}
 function label(list){return list.map(nm).join(', ');}
+function drives(i){return noDrive.indexOf(i)<0;}
 
 function choose(cands,c,tot,last){
   return cands.slice().sort(function(a,b){return (c[a]-c[b])||(tot[a]-tot[b])||(last[a]-last[b])||(a-b);})[0];
@@ -198,22 +202,22 @@ function simulate(){
   dates.forEach(function(date){
     var m=Object.keys(byDate[date]).map(Number).sort(function(a,b){return a-b;});
     m.forEach(function(i){part[i]++;});
-    var info={date:date,members:m,mask:maskOf(m),canDrive:{},driver:null,auto:null,solo:false,overridden:false,nobody:false};
-    m.forEach(function(i){info.canDrive[i]=byDate[date][i].canDrive!==false;});
-    if(m.length===1){info.solo=true;info.driver=m[0];}
+    var info={date:date,members:m,mask:maskOf(m),canDrive:{},driver:null,auto:null,solo:false,alone:false,overridden:false,nobody:false};
+    m.forEach(function(i){info.canDrive[i]=drives(i)&&byDate[date][i].canDrive!==false;});
+    if(m.length===1){if(drives(m[0])){info.solo=true;info.driver=m[0];}else{info.alone=true;info.nobody=true;}}
     else if(m.length>=2){
       var c=cnt[info.mask]=cnt[info.mask]||zero(0);
       var cands=m.filter(function(i){return info.canDrive[i];});
       if(cands.length)info.auto=choose(cands,c,tot,last);
       var d=info.auto, ov=overrides[date];
-      if(ov!==undefined&&m.indexOf(ov)>=0){d=ov;info.overridden=(ov!==info.auto);}
+      if(ov!==undefined&&m.indexOf(ov)>=0&&drives(ov)){d=ov;info.overridden=(ov!==info.auto);}
       info.driver=d; info.nobody=(d===null);
       if(d!==null){c[d]++;tot[d]++;last[d]=seq++;}
     }
     days[date]=info;
   });
   var today=ymd(new Date()), cars=0, shared=0;
-  dates.forEach(function(d){var x=days[d];if(d<=today&&x.members.length>=2&&!x.nobody){cars+=x.members.length-1;shared++;}});
+  dates.forEach(function(d){var x=days[d];if(d<=today&&x.members.length>=2&&!x.nobody){cars+=Math.max(0,x.members.filter(drives).length-1);shared++;}});
   return {days:days,dates:dates,cnt:cnt,tot:tot,last:last,part:part,cars:cars,shared:shared};
 }
 
@@ -223,6 +227,7 @@ function setStatus(t){var el=$('#status');if(el)el.textContent=t||'';}
 function fromStore(){
   var cfg=store['config/people'];
   names=(cfg&&Array.isArray(cfg.names)&&cfg.names.length===N)?cfg.names:[];
+  noDrive=(cfg&&Array.isArray(cfg.noDrive))?cfg.noDrive.filter(function(i){return i>=0&&i<N;}):[];
   entries=[]; overrides={};
   Object.keys(store).forEach(function(k){
     var x=store[k]||{};
@@ -289,8 +294,10 @@ function dayHtml(sim){
     sign='<div class="sign"><p class="s-top">Noch offen</p><p class="s-big">Niemand eingetragen</p><p class="s-sub">Sobald sich zwei oder mehr eintragen, steht hier, wer fährt.</p></div>';
   }else if(n===1){
     sign='<div class="sign"><p class="s-top">Einzelfahrt</p><p class="s-big">'+esc(nm(info.driver))+' fährt allein</p><p class="s-sub">Einzelfahrten zählen nicht für die Reihenfolge.</p></div>';
+  }else if(info.alone){
+    sign='<div class="sign"><p class="s-top">Noch offen</p><p class="s-big">Nur '+esc(nm(info.members[0]))+' eingetragen</p><p class="s-sub">'+esc(nm(info.members[0]))+' fährt nicht selbst. Es braucht noch jemanden, der fährt.</p></div>';
   }else if(info.nobody){
-    sign='<div class="sign"><p class="s-top">Fahrer</p><p class="s-big">Niemand kann fahren</p><p class="s-sub">Alle Eingetragenen haben angegeben, dass sie an diesem Tag nicht fahren können.</p></div>';
+    sign='<div class="sign"><p class="s-top">Fahrer</p><p class="s-big">Niemand kann fahren</p><p class="s-sub">Keiner der Eingetragenen kann an diesem Tag fahren.</p></div>';
   }else{
     var tag=info.overridden?'<span class="s-tag">Von Hand geändert, die Rechnung hätte '+esc(nm(info.auto))+' vorgesehen</span>':'';
     var prov=sel>=today?'<p class="s-sub">Vorläufig. Trägt sich noch jemand ein oder aus, wird neu gerechnet.</p>':'';
@@ -299,7 +306,7 @@ function dayHtml(sim){
   var pl='';
   for(var i=0;i<N;i++){
     var inn=info.members.indexOf(i)>=0;
-    var st=inn?(info.canDrive[i]===false?'dabei, fährt nicht':'dabei'):'nicht eingetragen';
+    var st=inn?(!drives(i)?'dabei, fährt nie':info.canDrive[i]===false?'dabei, fährt nicht':'dabei'):'nicht eingetragen';
     pl+='<li class="'+(inn?'in':'')+'"><div class="n">'+esc(nm(i))+'</div><div class="s">'+st+'</div></li>';
   }
   var acts='';
@@ -309,15 +316,15 @@ function dayHtml(sim){
     var mine=info.members.indexOf(me)>=0;
     var my=entries.filter(function(e){return e.date===sel&&e.p===me;})[0];
     acts='<div class="actions"><button class="btn'+(mine?' ghost':'')+'" data-act="join">'+(mine?'Für diesen Tag austragen':'Ich fahre an diesem Tag mit')+'</button>';
-    if(mine){
+    if(mine&&drives(me)){
       acts+='<label class="chk"><input type="checkbox" id="cd"'+((my&&my.canDrive===false)?' checked':'')+'>Ich kann an diesem Tag nicht fahren</label>';
     }
     acts+='</div>';
   }
   var ov='';
-  if(n>=2){
+  if(n>=2&&info.members.filter(drives).length>0){
     var opts='<option value="">Berechnete Reihenfolge</option>';
-    info.members.forEach(function(i){opts+='<option value="'+i+'"'+(overrides[sel]===i?' selected':'')+'>'+esc(nm(i))+' ist gefahren</option>';});
+    info.members.filter(drives).forEach(function(i){opts+='<option value="'+i+'"'+(overrides[sel]===i?' selected':'')+'>'+esc(nm(i))+' ist gefahren</option>';});
     ov='<details class="ovr" id="ovr"'+((ovrOpen||overrides[sel]!==undefined)?' open':'')+'><summary>Es ist jemand anders gefahren</summary><select id="ovsel" aria-label="Tatsächlicher Fahrer">'+opts+'</select><p class="hint">Gilt nur für diesen Tag und zählt dann für die Reihenfolge.</p></details>';
   }
   return '<section class="card"><div class="nav"><button data-act="step" data-d="-1" aria-label="Vorheriger Arbeitstag">‹</button><div class="d"><div class="big">'+esc(fLong.format(parse(sel)))+'</div><div class="rel">'+rel+'</div></div><button data-act="step" data-d="1" aria-label="Nächster Arbeitstag">›</button></div>'
@@ -328,8 +335,10 @@ function dayHtml(sim){
 function overviewHtml(sim){
   var cur=(sim.days[sel]||{}).mask||0, rows='';
   groupMasks().forEach(function(m){
-    var mem=membersOf(m), c=sim.cnt[m]||zero(0), nx=choose(mem,c,sim.tot,sim.last), chips='';
-    mem.forEach(function(i){
+    var mem=membersOf(m), drv=mem.filter(drives);
+    if(!drv.length)return;
+    var c=sim.cnt[m]||zero(0), nx=choose(drv,c,sim.tot,sim.last), chips='';
+    drv.forEach(function(i){
       chips+='<span class="cc'+(i===nx?' next':'')+'">'+esc(nm(i))+' <span class="num">'+c[i]+'</span>'+(i===nx?' <em>dran</em>':'')+'</span>';
     });
     rows+='<li class="grp'+(m===cur?' cur':'')+'"><div class="gl">'+esc(label(mem))+(m===cur?'<span class="cur-t">gewählter Tag</span>':'')+'</div><div class="gc">'+chips+'</div></li>';
@@ -340,7 +349,8 @@ function overviewHtml(sim){
 function totalsHtml(sim){
   var rows='';
   for(var i=0;i<N;i++){
-    rows+='<tr><td>'+esc(nm(i))+'</td><td class="r">'+sim.tot[i]+'</td><td class="r">'+(sim.tot[i]*KM*2)+'</td><td class="r">'+sim.part[i]+'</td></tr>';
+    var dr=drives(i);
+    rows+='<tr><td>'+esc(nm(i))+'</td><td class="r">'+(dr?sim.tot[i]:'–')+'</td><td class="r">'+(dr?sim.tot[i]*KM*2:'–')+'</td><td class="r">'+sim.part[i]+'</td></tr>';
   }
   return '<section class="card"><h2>Insgesamt</h2><div class="tw"><table><thead><tr><th>Name</th><th class="r">Fahrten</th><th class="r">km</th><th class="r">Tage dabei</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="hint">Gezählt werden Fahrten in Gruppen ab zwei Personen. Eine Fahrt sind '+(KM*2)+' km.</p></section>';
 }
@@ -354,7 +364,7 @@ function savingsHtml(sim){
     +'<div><div class="v">'+fNum.format(beers)+'</div><div class="k">Halbe Bier (0,5 l)</div></div>'
     +'<div><div class="v">'+fNum.format(km)+'</div><div class="k">Kilometer weniger gefahren</div></div>'
     +'<div><div class="v">'+fNum.format(liters)+'</div><div class="k">Liter Sprit</div></div>'
-    +'</div><p class="hint">Gerechnet wird mit '+fNum.format(L100)+' l auf 100 km, '+fEur.format(PRICE)+' je Liter und '+fEur.format(BEER)+' für ein Bier mit 0,5 l. An einem Tag mit n Personen bleiben n minus 1 Autos stehen, je '+(KM*2)+' km für Hin- und Rückfahrt. Einzelfahrten und künftige Tage zählen nicht. Bisher '+sim.shared+' gemeinsame Tage.</p></section>';
+    +'</div><p class="hint">Gerechnet wird mit '+fNum.format(L100)+' l auf 100 km, '+fEur.format(PRICE)+' je Liter und '+fEur.format(BEER)+' für ein Bier mit 0,5 l. An einem Tag mit n Personen, die selbst fahren könnten, bleiben n minus 1 Autos stehen, je '+(KM*2)+' km für Hin- und Rückfahrt. Einzelfahrten und künftige Tage zählen nicht. Bisher '+sim.shared+' gemeinsame Tage.</p></section>';
 }
 
 function historyHtml(sim){
@@ -371,12 +381,12 @@ function historyHtml(sim){
 }
 
 function rulesHtml(){
-  return '<details class="card"><summary>So wird gerechnet</summary><p class="hint">In jeder Gruppe fährt, wer in genau dieser Gruppe bisher am seltensten gefahren ist. Bei Gleichstand fährt, wer insgesamt weniger gefahren ist, danach wer länger nicht dran war. Wer eingetragen ist, aber nicht fahren kann, behält seinen Rückstand und ist beim nächsten Mal in dieser Gruppe wieder vorn. Wer im Urlaub ist, trägt sich nicht ein und kommt in keiner Gruppe vor. Einzelfahrten zählen nicht. Wird ein früherer Tag nachträglich geändert, werden spätere Tage neu gerechnet.</p></details>';
+  return '<details class="card"><summary>So wird gerechnet</summary><p class="hint">In jeder Gruppe fährt, wer in genau dieser Gruppe bisher am seltensten gefahren ist. Bei Gleichstand fährt, wer insgesamt weniger gefahren ist, danach wer länger nicht dran war. Wer eingetragen ist, aber nicht fahren kann, behält seinen Rückstand und ist beim nächsten Mal in dieser Gruppe wieder vorn. Wer im Urlaub ist, trägt sich nicht ein und kommt in keiner Gruppe vor. Wer als „fährt nie“ markiert ist, fährt immer nur mit und wird bei der Reihenfolge nicht berücksichtigt. Einzelfahrten zählen nicht. Wird ein früherer Tag nachträglich geändert, werden spätere Tage neu gerechnet.</p></details>';
 }
 
 function formHtml(first){
   var f='';
-  for(var i=0;i<N;i++){f+='<label>Person '+(i+1)+'<input id="n'+i+'" type="text" maxlength="30" autocomplete="off" value="'+esc(names&&names[i]?names[i]:'')+'"></label>';}
+  for(var i=0;i<N;i++){f+='<div class="prow"><label>Person '+(i+1)+'<input id="n'+i+'" type="text" maxlength="30" autocomplete="off" value="'+esc(names&&names[i]?names[i]:'')+'"></label><label class="chk"><input type="checkbox" id="nd'+i+'"'+(noDrive.indexOf(i)>=0?' checked':'')+'>fährt nie</label></div>';}
   var form='<form id="nf" class="form">'+f+'<button class="btn" type="submit">Namen speichern</button><p id="nmsg" class="status" role="alert"></p></form>';
   if(first)return '<section class="card"><h2>Wer fährt mit?</h2><p>Trage die Namen der fünf ein. Danach sehen alle auf dieser Seite dieselben Namen. Sie lassen sich später ändern, die Zählung bleibt dabei erhalten.</p>'+form+'</section>';
   return '<details class="card"><summary>Namen ändern</summary>'+form+'</details>';
@@ -384,7 +394,7 @@ function formHtml(first){
 
 var lastSetupKey='', lastFirst=null;
 function renderSetup(first){
-  var key=(first?'F':'E')+'|'+(names||[]).join('|');
+  var key=(first?'F':'E')+'|'+(names||[]).join('|')+'|'+noDrive.join(',');
   var el=$('#setup');
   if(key===lastSetupKey)return;
   if(first===lastFirst&&el.contains(document.activeElement))return;
@@ -446,9 +456,12 @@ document.addEventListener('submit',function(e){
   var dup=low.some(function(x,i){return low.indexOf(x)!==i;});
   if(bad){msg.textContent='Bitte alle fünf Namen ausfüllen.';return;}
   if(dup){msg.textContent='Zwei Namen sind gleich. Bitte unterscheiden.';return;}
+  var nd=[];
+  for(var j=0;j<N;j++){if($('#nd'+j).checked)nd.push(j);}
+  if(nd.length>=N){msg.textContent='Mindestens eine Person muss fahren können.';return;}
   msg.textContent='';
   lastSetupKey='';
-  write([{op:'set',key:'config/people',value:{names:list}}]);
+  write([{op:'set',key:'config/people',value:{names:list,noDrive:nd}}]);
 });
 
 render();
