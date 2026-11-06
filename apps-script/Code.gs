@@ -8,7 +8,9 @@
  */
 
 var SHEET = 'Daten';
-var KEY_RE = /^(config\/people|entries\/\d{4}-\d{2}-\d{2}_[0-9]|overrides\/\d{4}-\d{2}-\d{2})$/;
+// Erlaubt sind Schlüssel der Form "bereich/name", z. B. entries/2026-11-06_0 oder settings/2.
+// Bewusst allgemein gehalten, damit neue Funktionen der Seite keine neue Bereitstellung brauchen.
+var KEY_RE = /^[a-z]{1,20}\/[A-Za-z0-9_\-]{1,40}$/;
 
 function sheet_() {
   var ss = SpreadsheetApp.getActive();

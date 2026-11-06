@@ -139,7 +139,20 @@ td.r,th.r{text-align:right;padding-right:0}
 .sav .hl{background:var(--amber);color:var(--amber-ink)}
 .sav .hl .v{font-size:46px}
 .sav .k{font-size:13px;opacity:.85}
-@media (prefers-reduced-motion:no-preference){.btn,.chip{transition:background-color .15s,border-color .15s}}
+@media (prefers-reduced-motion:no-preference){.btn,.chip,.tab{transition:background-color .15s,border-color .15s}}
+
+.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:24px;background:var(--surface);box-shadow:var(--shadow)}
+.tab{flex:1 0 auto;min-height:40px;padding:0 16px;border:0;border-radius:999px;background:transparent;font-weight:500;white-space:nowrap}
+.tab[aria-current="page"]{background:var(--ink);color:var(--bg)}
+.tab.me-t::after{content:" · ich";font-weight:400;opacity:.7}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:10px;margin-top:12px}
+.stats>div{background:var(--soft);border-radius:14px;padding:12px 14px;min-width:0}
+.stats .v{font:700 28px/1.1 var(--f-display);font-variant-numeric:tabular-nums}
+.stats .k{font-size:13px;color:var(--muted)}
+.form .row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px}
+.form select{min-height:46px;padding:0 10px;border:0;border-radius:8px;background:var(--soft);color:var(--ink)}
+.ok{color:var(--muted);font-size:14px}
+.ok:empty{display:none}
 </style>
 <meta http-equiv="Cache-Control" content="no-cache">
 <script src="config.js?v=2"></script>
@@ -150,6 +163,7 @@ td.r,th.r{text-align:right;padding-right:0}
     <h1>Wer fährt?</h1>
     <p class="sub">Fahrgemeinschaft zur Arbeit, 20 km pro Strecke</p>
   </header>
+  <nav id="tabs" class="tabs" aria-label="Bereiche" hidden></nav>
   <p id="status" class="status" role="status" aria-live="polite"></p>
   <div id="main" class="wrap" style="gap:16px"><div class="card"><p>Lade Daten …</p></div></div>
   <div id="setup"></div>
@@ -162,7 +176,11 @@ var API=(window.FG_API||'').trim();
 function zero(v){var a=[];for(var i=0;i<N;i++)a.push(v);return a;}
 var $=function(s){return document.querySelector(s);};
 var names=null, noDrive=[], loaded=false, loadFailed=false;
-var entries=[], overrides={};
+var entries=[], overrides={}, settings={};
+var FUELS=['Super E10','Super E5','Diesel','Autogas (LPG)'];
+var tab='start';
+function readHash(){var h=(location.hash||'').replace('#','');tab=(h==='gruppen'||/^p[0-9]$/.test(h))?h:'start';}
+readHash();
 var store={}, storeJson='', pending=0, busyQ=Promise.resolve();
 var me=null;
 try{var v=localStorage.getItem('fg_me'); if(v!==null&&v!==''){me=parseInt(v,10); if(!(me>=0&&me<N))me=null;}}catch(e){}
@@ -216,9 +234,14 @@ function simulate(){
     }
     days[date]=info;
   });
-  var today=ymd(new Date()), cars=0, shared=0;
-  dates.forEach(function(d){var x=days[d];if(d<=today&&x.members.length>=2&&!x.nobody){cars+=Math.max(0,x.members.filter(drives).length-1);shared++;}});
-  return {days:days,dates:dates,cnt:cnt,tot:tot,last:last,part:part,cars:cars,shared:shared};
+  // saved[i]: Tage, an denen i hätte selbst fahren können, aber bei jemand anderem mitgefahren ist
+  var today=ymd(new Date()), shared=0, saved=zero(0);
+  dates.forEach(function(d){var x=days[d];
+    if(d<=today&&x.members.length>=2&&!x.nobody){
+      shared++;
+      x.members.forEach(function(i){if(drives(i)&&i!==x.driver)saved[i]++;});
+    }});
+  return {days:days,dates:dates,cnt:cnt,tot:tot,last:last,part:part,shared:shared,saved:saved};
 }
 
 function setStatus(t){var el=$('#status');if(el)el.textContent=t||'';}
@@ -228,9 +251,10 @@ function fromStore(){
   var cfg=store['config/people'];
   names=(cfg&&Array.isArray(cfg.names)&&cfg.names.length===N)?cfg.names:[];
   noDrive=(cfg&&Array.isArray(cfg.noDrive))?cfg.noDrive.filter(function(i){return i>=0&&i<N;}):[];
-  entries=[]; overrides={};
+  entries=[]; overrides={}; settings={};
   Object.keys(store).forEach(function(k){
     var x=store[k]||{};
+    if(/^settings\/[0-9]$/.test(k))settings[Number(k.slice(9))]=x;
     if(k.indexOf('entries/')===0)entries.push({date:String(x.date),p:Number(x.p),canDrive:x.canDrive!==false});
     else if(k.indexOf('overrides/')===0&&typeof x.driver==='number')overrides[k.slice(10)]=x.driver;
   });
@@ -357,14 +381,71 @@ function totalsHtml(sim){
 
 var fNum=new Intl.NumberFormat('de-DE',{maximumFractionDigits:1});
 var fEur=new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'});
+var fNum2=new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:3});
+function num(v){var n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:NaN;}
+function carOf(i){
+  var s=settings[i]||{}, l=num(s.l100), p=num(s.price);
+  var own=l>=1&&l<=40&&p>=0.3&&p<=6;
+  return {l100:own?l:L100, price:own?p:PRICE, fuel:FUELS.indexOf(s.fuel)>=0?s.fuel:FUELS[0], own:own};
+}
+function savOf(sim,i){
+  var c=carOf(i), km=sim.saved[i]*KM*2, l=km*c.l100/100;
+  return {days:sim.saved[i], km:km, liters:l, eur:l*c.price};
+}
+function savTotal(sim){
+  var t={km:0,liters:0,eur:0};
+  for(var i=0;i<N;i++){if(!drives(i))continue;var s=savOf(sim,i);t.km+=s.km;t.liters+=s.liters;t.eur+=s.eur;}
+  return t;
+}
+function savGrid(s){
+  return '<div class="sav">'
+    +'<div class="hl"><div class="v">'+fEur.format(s.eur)+'</div><div class="k">Spritkosten gespart</div></div>'
+    +'<div><div class="v">'+fNum.format(s.eur/BEER)+'</div><div class="k">Halbe Bier (0,5 l), die man davon kaufen kann</div></div>'
+    +'<div><div class="v">'+fNum.format(s.km)+'</div><div class="k">Kilometer gespart</div></div>'
+    +'<div><div class="v">'+fNum.format(s.liters)+'</div><div class="k">Liter Sprit gespart</div></div>'
+    +'</div>';
+}
 function savingsHtml(sim){
-  var km=sim.cars*KM*2, liters=km*L100/100, eur=liters*PRICE, beers=eur/BEER;
-  return '<section class="card sv"><h2>Gespart</h2><div class="sav">'
-    +'<div class="hl"><div class="v">'+fEur.format(eur)+'</div><div class="k">Spritkosten gespart</div></div>'
-    +'<div><div class="v">'+fNum.format(beers)+'</div><div class="k">Halbe Bier (0,5 l)</div></div>'
-    +'<div><div class="v">'+fNum.format(km)+'</div><div class="k">Kilometer weniger gefahren</div></div>'
-    +'<div><div class="v">'+fNum.format(liters)+'</div><div class="k">Liter Sprit</div></div>'
-    +'</div><p class="hint">Gerechnet wird mit '+fNum.format(L100)+' l auf 100 km, '+fEur.format(PRICE)+' je Liter und '+fEur.format(BEER)+' für ein Bier mit 0,5 l. An einem Tag mit n Personen, die selbst fahren könnten, bleiben n minus 1 Autos stehen, je '+(KM*2)+' km für Hin- und Rückfahrt. Einzelfahrten und künftige Tage zählen nicht. Bisher '+sim.shared+' gemeinsame Tage.</p></section>';
+  var miss=[];
+  for(var i=0;i<N;i++){if(drives(i)&&!carOf(i).own)miss.push(nm(i));}
+  var mh=miss.length?' Noch ohne eigene Angaben, gerechnet mit '+fNum.format(L100)+' l und '+fEur.format(PRICE)+': '+esc(miss.join(', '))+'.':'';
+  return '<section class="card sv"><h2>Gemeinsam gespart</h2>'+savGrid(savTotal(sim))
+    +'<p class="hint">Summe aller persönlichen Ersparnisse, jeweils mit Verbrauch und Spritpreis aus dem eigenen Reiter. Ein Bier mit 0,5 l kostet '+fEur.format(BEER)+'. Bisher '+sim.shared+' gemeinsame Tage.'+mh+'</p></section>';
+}
+
+function tabsHtml(){
+  var t=[['start','Start'],['gruppen','Gruppen']];
+  for(var i=0;i<N;i++){if(drives(i))t.push(['p'+i,nm(i)]);}
+  return t.map(function(x){
+    var meT=(x[0]==='p'+me)?' me-t':'';
+    return '<button class="tab'+meT+'" data-act="tab" data-t="'+x[0]+'"'+(tab===x[0]?' aria-current="page"':'')+'>'+esc(x[1])+'</button>';
+  }).join('');
+}
+
+function personHtml(sim,i){
+  var s=savOf(sim,i), c=carOf(i);
+  var hint=c.own?'Gerechnet mit '+fNum.format(c.l100)+' l auf 100 km ('+esc(c.fuel)+') und '+fNum2.format(c.price)+' € je Liter.'
+    :'Noch keine eigenen Angaben. Gerechnet wird vorläufig mit '+fNum.format(L100)+' l auf 100 km und '+fEur.format(PRICE)+' je Liter. Trag unten deine Werte ein.';
+  return '<div class="top"><section class="card sv"><h2>'+esc(nm(i))+' hat gespart</h2>'+savGrid(s)
+      +'<p class="hint">Gezählt werden die Tage, an denen '+esc(nm(i))+' bei jemand anderem mitgefahren ist und das eigene Auto stehen bleiben konnte, je '+(KM*2)+' km. '+hint+'</p></section>'
+    +'<section class="card"><h2>Fahrten</h2><div class="stats">'
+      +'<div><div class="v">'+s.days+'</div><div class="k">Tage mitgefahren</div></div>'
+      +'<div><div class="v">'+sim.tot[i]+'</div><div class="k">Mal selbst gefahren</div></div>'
+      +'<div><div class="v">'+fNum.format(sim.tot[i]*KM*2)+'</div><div class="k">km selbst gefahren</div></div>'
+      +'<div><div class="v">'+sim.part[i]+'</div><div class="k">Tage dabei insgesamt</div></div>'
+    +'</div><p class="hint">Vergangene Tage in Gruppen ab zwei Personen. Bei „selbst gefahren“ zählen auch eingetragene künftige Tage mit.</p></section></div>';
+}
+
+function carFormHtml(i){
+  var c=carOf(i), s=settings[i]||{}, opts='';
+  FUELS.forEach(function(f){opts+='<option'+(f===c.fuel?' selected':'')+'>'+esc(f)+'</option>';});
+  var l=c.own?String(s.l100).replace('.',','):'', p=c.own?String(s.price).replace('.',','):'';
+  return '<section class="card"><h2>Auto von '+esc(nm(i))+'</h2><p class="hint">Diese Werte gelten nur für '+esc(nm(i))+' und fließen in die gemeinsame Summe auf der Startseite ein.</p>'
+    +'<form id="cf" class="form" data-p="'+i+'"><div class="row2">'
+    +'<label>Verbrauch in l auf 100 km<input id="cl" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 6,5" value="'+esc(l)+'"></label>'
+    +'<label>Kraftstoff<select id="cfu">'+opts+'</select></label>'
+    +'<label>Preis je Liter in €<input id="cp" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 1,79" value="'+esc(p)+'"></label>'
+    +'</div><button class="btn" type="submit">Speichern</button><p id="cmsg" class="status" role="alert"></p><p id="cok" class="ok" role="status"></p></form></section>';
 }
 
 function historyHtml(sim){
@@ -392,14 +473,16 @@ function formHtml(first){
   return '<details class="card"><summary>Namen ändern</summary>'+form+'</details>';
 }
 
-var lastSetupKey='', lastFirst=null;
-function renderSetup(first){
-  var key=(first?'F':'E')+'|'+(names||[]).join('|')+'|'+noDrive.join(',');
+// Formulare liegen außerhalb von #main, damit das Nachladen alle 15 Sekunden keine Eingaben löscht.
+var lastSetupKey='', lastKind=null;
+function renderSetup(kind){
+  var p=/^p[0-9]$/.test(kind)?Number(kind.slice(1)):-1;
+  var key=kind+'|'+(names||[]).join('|')+'|'+noDrive.join(',')+(p>=0?'|'+JSON.stringify(settings[p]||{}):'');
   var el=$('#setup');
   if(key===lastSetupKey)return;
-  if(first===lastFirst&&el.contains(document.activeElement))return;
-  lastSetupKey=key; lastFirst=first;
-  el.innerHTML=formHtml(first);
+  if(kind===lastKind&&el.contains(document.activeElement))return;
+  lastSetupKey=key; lastKind=kind;
+  el.innerHTML=kind==='first'?formHtml(true):kind==='start'?formHtml(false):p>=0?carFormHtml(p):'';
 }
 
 function render(){
@@ -413,20 +496,37 @@ function render(){
     return;
   }
   var first=!names||names.length!==N;
-  if(first){main.innerHTML='';renderSetup(true);return;}
+  var nav=$('#tabs');
+  if(first){nav.hidden=true;main.innerHTML='';renderSetup('first');return;}
+  if(/^p[0-9]$/.test(tab)&&!drives(Number(tab.slice(1))))tab='start';
+  nav.hidden=false; nav.innerHTML=tabsHtml();
   var ae=document.activeElement, keepId=ae&&main.contains(ae)?ae.id:'';
   var sim=simulate();
-  main.innerHTML='<div class="top"><div class="col">'+meHtml()+dayHtml(sim)+'</div>'+savingsHtml(sim)+'</div>'+overviewHtml(sim)+'<div class="two">'+totalsHtml(sim)+historyHtml(sim)+'</div>'+rulesHtml();
+  if(tab==='gruppen'){
+    main.innerHTML=overviewHtml(sim);
+  }else if(tab.charAt(0)==='p'){
+    main.innerHTML=personHtml(sim,Number(tab.slice(1)));
+  }else{
+    main.innerHTML='<div class="top"><div class="col">'+meHtml()+dayHtml(sim)+'</div>'+savingsHtml(sim)+'</div><div class="two">'+totalsHtml(sim)+historyHtml(sim)+'</div>'+rulesHtml();
+  }
   if(keepId){var el=document.getElementById(keepId);if(el)el.focus();}
-  renderSetup(false);
+  renderSetup(tab);
 }
+function goTab(t){
+  tab=t;
+  try{history.replaceState(null,'',t==='start'?location.pathname+location.search:'#'+t);}catch(x){location.hash=t;}
+  render();
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',function(){readHash();render();});
 
 document.addEventListener('toggle',function(e){if(e.target&&e.target.id==='ovr')ovrOpen=e.target.open;},true);
 
 document.addEventListener('click',function(e){
   var t=e.target.closest('[data-act]'); if(!t)return;
   var a=t.getAttribute('data-act');
-  if(a==='me'){me=parseInt(t.getAttribute('data-i'),10);try{localStorage.setItem('fg_me',String(me));}catch(x){}render();}
+  if(a==='tab'){goTab(t.getAttribute('data-t'));}
+  else if(a==='me'){me=parseInt(t.getAttribute('data-i'),10);try{localStorage.setItem('fg_me',String(me));}catch(x){}render();}
   else if(a==='step'){sel=stepWork(sel,parseInt(t.getAttribute('data-d'),10));render();}
   else if(a==='today'){sel=ymd(new Date());render();}
   else if(a==='join'&&me!==null){
@@ -445,6 +545,20 @@ document.addEventListener('change',function(e){
     if(t.value==='')write([{op:'delete',key:k}]);
     else write([{op:'set',key:k,value:{date:sel,driver:parseInt(t.value,10)}}]);
   }
+});
+document.addEventListener('submit',function(e){
+  if(e.target.id!=='cf')return;
+  e.preventDefault();
+  var p=Number(e.target.getAttribute('data-p')), msg=$('#cmsg'), ok=$('#cok');
+  var l=num($('#cl').value), pr=num($('#cp').value), fu=$('#cfu').value;
+  ok.textContent='';
+  if(!(l>=1&&l<=40)){msg.textContent='Bitte einen Verbrauch zwischen 1 und 40 Litern auf 100 km eintragen.';return;}
+  if(!(pr>=0.3&&pr<=6)){msg.textContent='Bitte einen Preis je Liter zwischen 0,30 € und 6 € eintragen.';return;}
+  msg.textContent='';
+  write([{op:'set',key:'settings/'+p,value:{l100:l,price:pr,fuel:fu}}]);
+  lastSetupKey='';
+  renderSetup(tab);
+  var ok2=$('#cok'); if(ok2)ok2.textContent='Gespeichert.';
 });
 document.addEventListener('submit',function(e){
   if(e.target.id!=='nf')return;
