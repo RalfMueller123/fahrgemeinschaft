@@ -124,6 +124,15 @@ td.r,th.r{text-align:right;padding-right:0}
 .sign{background:linear-gradient(155deg,var(--hero-a),var(--hero-b));border-radius:16px;box-shadow:none}
 .plist li{border:0;background:var(--soft);border-radius:12px;padding:10px 12px}
 .plist li.in{background:var(--tint);box-shadow:inset 0 0 0 2px var(--sign)}
+.plist li.out{opacity:.6}
+.plist li.out .n{text-decoration:line-through}
+.plist li.open{background:transparent;box-shadow:none;outline:2px dashed var(--line);outline-offset:-2px}
+.plist li.open .s{color:var(--warn);font-weight:500}
+.answ{margin-top:12px;font-weight:600;color:var(--warn)}
+.answ.done{color:var(--muted);font-weight:500}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn.yes[aria-pressed="false"],.btn.no[aria-pressed="false"]{background:var(--soft);color:var(--ink);border-color:transparent}
+.btn.no[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .groups{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
 .grp{border:0;background:var(--soft);border-radius:14px}
 .grp.cur{background:var(--tint);box-shadow:inset 0 0 0 2px var(--sign)}
@@ -176,7 +185,7 @@ var API=(window.FG_API||'').trim();
 function zero(v){var a=[];for(var i=0;i<N;i++)a.push(v);return a;}
 var $=function(s){return document.querySelector(s);};
 var names=null, noDrive=[], loaded=false, loadFailed=false;
-var entries=[], overrides={}, settings={};
+var entries=[], overrides={}, settings={}, absent={};
 var FUELS=['Super E10','Super E5','Diesel','Autogas (LPG)'];
 var tab='start';
 function readHash(){var h=(location.hash||'').replace('#','');tab=(h==='gruppen'||/^p[0-9]$/.test(h))?h:'start';}
@@ -251,10 +260,11 @@ function fromStore(){
   var cfg=store['config/people'];
   names=(cfg&&Array.isArray(cfg.names)&&cfg.names.length===N)?cfg.names:[];
   noDrive=(cfg&&Array.isArray(cfg.noDrive))?cfg.noDrive.filter(function(i){return i>=0&&i<N;}):[];
-  entries=[]; overrides={}; settings={};
+  entries=[]; overrides={}; settings={}; absent={};
   Object.keys(store).forEach(function(k){
     var x=store[k]||{};
     if(/^settings\/[0-9]$/.test(k))settings[Number(k.slice(9))]=x;
+    if(k.indexOf('absent/')===0)absent[k.slice(7)]=true;
     if(k.indexOf('entries/')===0)entries.push({date:String(x.date),p:Number(x.p),canDrive:x.canDrive!==false});
     else if(k.indexOf('overrides/')===0&&typeof x.driver==='number')overrides[k.slice(10)]=x.driver;
   });
@@ -313,9 +323,13 @@ function dayHtml(sim){
   var info=sim.days[sel]||{members:[],canDrive:{},driver:null,mask:0};
   var n=info.members.length, today=ymd(new Date());
   var rel=sel===today?'heute':sel===addDays(today,1)?'morgen':sel===addDays(today,-1)?'gestern':'';
+  var out=[], open=[];
+  for(var k=0;k<N;k++){if(info.members.indexOf(k)>=0)continue;if(absent[sel+'_'+k])out.push(k);else open.push(k);}
   var sign;
-  if(n===0){
-    sign='<div class="sign"><p class="s-top">Noch offen</p><p class="s-big">Niemand eingetragen</p><p class="s-sub">Sobald sich zwei oder mehr eintragen, steht hier, wer fährt.</p></div>';
+  if(n===0&&open.length===0){
+    sign='<div class="sign"><p class="s-top">Keine Fahrt</p><p class="s-big">Alle haben abgesagt</p><p class="s-sub">An diesem Tag fährt niemand mit.</p></div>';
+  }else if(n===0){
+    sign='<div class="sign"><p class="s-top">Noch offen</p><p class="s-big">Niemand eingetragen</p><p class="s-sub">Sobald zwei oder mehr zusagen, steht hier, wer fährt.</p></div>';
   }else if(info.alone){
     sign='<div class="sign"><p class="s-top">Noch offen</p><p class="s-big">Nur '+esc(nm(info.members[0]))+' eingetragen</p><p class="s-sub">'+esc(nm(info.members[0]))+' fährt nicht selbst. Es braucht noch jemanden, der fährt.</p></div>';
   }else if(n===1){
@@ -324,22 +338,25 @@ function dayHtml(sim){
     sign='<div class="sign"><p class="s-top">Fahrer</p><p class="s-big">Niemand kann fahren</p><p class="s-sub">Keiner der Eingetragenen kann an diesem Tag fahren.</p></div>';
   }else{
     var tag=info.overridden?'<span class="s-tag">Von Hand geändert, die Rechnung hätte '+esc(nm(info.auto))+' vorgesehen</span>':'';
-    var prov=sel>=today?'<p class="s-sub">Vorläufig. Trägt sich noch jemand ein oder aus, wird neu gerechnet.</p>':'';
+    var prov=sel<today?'':open.length?'<p class="s-sub">Vorläufig. Es fehlt noch die Antwort von '+esc(label(open))+'.</p>':'<p class="s-sub">Alle haben geantwortet.</p>';
     sign='<div class="sign"><p class="s-top">Es fährt</p><p class="s-big">'+esc(nm(info.driver))+'</p><p class="s-sub">Gruppe: '+esc(label(info.members))+'. '+(KM*2)+' km für Hin- und Rückfahrt.</p>'+prov+tag+'</div>';
   }
   var pl='';
   for(var i=0;i<N;i++){
-    var inn=info.members.indexOf(i)>=0;
-    var st=inn?(!drives(i)?'dabei, fährt nie':info.canDrive[i]===false?'dabei, fährt nicht':'dabei'):'nicht eingetragen';
-    pl+='<li class="'+(inn?'in':'')+'"><div class="n">'+esc(nm(i))+'</div><div class="s">'+st+'</div></li>';
+    var inn=info.members.indexOf(i)>=0, isOut=out.indexOf(i)>=0;
+    var st=inn?(!drives(i)?'✓ dabei, fährt nie':info.canDrive[i]===false?'✓ dabei, fährt nicht':'✓ dabei'):isOut?'✗ abgesagt':'? noch keine Antwort';
+    pl+='<li class="'+(inn?'in':isOut?'out':'open')+'"><div class="n">'+esc(nm(i))+'</div><div class="s">'+st+'</div></li>';
   }
+  var cnt='<p class="answ'+(open.length?'':' done')+'">'+(open.length?(N-open.length)+' von '+N+' haben geantwortet':'Alle '+N+' haben geantwortet')+'</p>';
   var acts='';
   if(me===null){
-    acts='<p class="hint">Wähle oben, wer du bist. Dann kannst du dich für diesen Tag eintragen.</p>';
+    acts='<p class="hint">Wähle oben, wer du bist. Dann kannst du für diesen Tag zu- oder absagen.</p>';
   }else{
-    var mine=info.members.indexOf(me)>=0;
+    var mine=info.members.indexOf(me)>=0, myOut=out.indexOf(me)>=0;
     var my=entries.filter(function(e){return e.date===sel&&e.p===me;})[0];
-    acts='<div class="actions"><button class="btn'+(mine?' ghost':'')+'" data-act="join">'+(mine?'Für diesen Tag austragen':'Ich fahre an diesem Tag mit')+'</button>';
+    acts='<div class="actions"><div class="yn" role="group" aria-label="Deine Antwort für diesen Tag">'
+      +'<button class="btn yes" data-act="yes" aria-pressed="'+mine+'">✓ Dabei</button>'
+      +'<button class="btn no" data-act="no" aria-pressed="'+myOut+'">✗ Nicht dabei</button></div>';
     if(mine&&drives(me)){
       acts+='<label class="chk"><input type="checkbox" id="cd"'+((my&&my.canDrive===false)?' checked':'')+'>Ich kann an diesem Tag nicht fahren</label>';
     }
@@ -353,7 +370,7 @@ function dayHtml(sim){
   }
   return '<section class="card"><div class="nav"><button data-act="step" data-d="-1" aria-label="Vorheriger Arbeitstag">‹</button><div class="d"><div class="big">'+esc(fLong.format(parse(sel)))+'</div><div class="rel">'+rel+'</div></div><button data-act="step" data-d="1" aria-label="Nächster Arbeitstag">›</button></div>'
     +'<div class="pick"><input type="date" id="dsel" value="'+sel+'" aria-label="Datum wählen"><button class="small" data-act="today">Heute</button></div>'
-    +sign+'<ul class="plist">'+pl+'</ul>'+acts+ov+'</section>';
+    +sign+cnt+'<ul class="plist">'+pl+'</ul>'+acts+ov+'</section>';
 }
 
 function overviewHtml(sim){
@@ -529,10 +546,17 @@ document.addEventListener('click',function(e){
   else if(a==='me'){me=parseInt(t.getAttribute('data-i'),10);try{localStorage.setItem('fg_me',String(me));}catch(x){}render();}
   else if(a==='step'){sel=stepWork(sel,parseInt(t.getAttribute('data-d'),10));render();}
   else if(a==='today'){sel=ymd(new Date());render();}
-  else if(a==='join'&&me!==null){
-    var key='entries/'+sel+'_'+me;
-    if(store[key])write([{op:'delete',key:key}]);
-    else write([{op:'set',key:key,value:{date:sel,p:me,canDrive:true}}]);
+  else if((a==='yes'||a==='no')&&me!==null){
+    // Erneutes Tippen auf die aktive Antwort nimmt sie zurück.
+    var ek='entries/'+sel+'_'+me, ak='absent/'+sel+'_'+me, ops=[];
+    if(a==='yes'){
+      if(store[ek])ops.push({op:'delete',key:ek});
+      else{ops.push({op:'set',key:ek,value:{date:sel,p:me,canDrive:true}});if(store[ak])ops.push({op:'delete',key:ak});}
+    }else{
+      if(store[ak])ops.push({op:'delete',key:ak});
+      else{ops.push({op:'set',key:ak,value:{date:sel,p:me}});if(store[ek])ops.push({op:'delete',key:ek});}
+    }
+    write(ops);
   }
 });
 document.addEventListener('change',function(e){
