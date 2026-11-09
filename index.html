@@ -12,6 +12,9 @@
   --bg:#EDF0F5; --surface:#FFFFFF; --ink:#14203A; --muted:#5A6578; --line:#D3DAE6;
   --sign:#0F4C9A; --sign-ink:#FFFFFF; --amber:#F2BE22; --amber-ink:#2A2000;
   --tint:#E4ECF8; --warn:#A8480F; --focus:#0F4C9A;
+  --yes-bg:#DDF4E4; --yes-ink:#14532D; --yes-line:#7CC796;
+  --no-bg:#FBE2E2; --no-ink:#7F1D1D; --no-line:#E39A9A;
+  --open-bg:#FFF3C4; --open-ink:#6B4E00; --open-line:#E6C65A;
   --f-display:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
   --f-body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
   color-scheme:light;
@@ -21,12 +24,18 @@
     --bg:#0E1420; --surface:#162033; --ink:#E6EBF5; --muted:#9AA6BC; --line:#27324A;
     --sign:#1B58AE; --sign-ink:#FFFFFF; --amber:#E9B93A; --amber-ink:#241B00;
     --tint:#1C2A45; --warn:#F09A5E; --focus:#8DB4F4; color-scheme:dark;
+    --yes-bg:#173D26; --yes-ink:#BDEFCB; --yes-line:#2F7A4B;
+    --no-bg:#47202A; --no-ink:#F6C6C6; --no-line:#8E3A44;
+    --open-bg:#433815; --open-ink:#F5DF92; --open-line:#8A7426;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0E1420; --surface:#162033; --ink:#E6EBF5; --muted:#9AA6BC; --line:#27324A;
   --sign:#1B58AE; --sign-ink:#FFFFFF; --amber:#E9B93A; --amber-ink:#241B00;
   --tint:#1C2A45; --warn:#F09A5E; --focus:#8DB4F4; color-scheme:dark;
+  --yes-bg:#173D26; --yes-ink:#BDEFCB; --yes-line:#2F7A4B;
+  --no-bg:#47202A; --no-ink:#F6C6C6; --no-line:#8E3A44;
+  --open-bg:#433815; --open-ink:#F5DF92; --open-line:#8A7426;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -123,16 +132,52 @@ td.r,th.r{text-align:right;padding-right:0}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .sign{background:linear-gradient(155deg,var(--hero-a),var(--hero-b));border-radius:16px;box-shadow:none}
 .plist li{border:0;background:var(--soft);border-radius:12px;padding:10px 12px}
-.plist li.in{background:var(--tint);box-shadow:inset 0 0 0 2px var(--sign)}
-.plist li.out{opacity:.6}
-.plist li.out .n{text-decoration:line-through}
-.plist li.open{background:transparent;box-shadow:none;outline:2px dashed var(--line);outline-offset:-2px}
-.plist li.open .s{color:var(--warn);font-weight:500}
+/* Ampel: grün dabei, rot abgesagt, gelb noch offen */
+.plist li.in,.plist li.out,.plist li.open{box-shadow:inset 0 0 0 1px var(--l)}
+.plist li.in{background:var(--yes-bg);color:var(--yes-ink);--l:var(--yes-line)}
+.plist li.out{background:var(--no-bg);color:var(--no-ink);--l:var(--no-line)}
+.plist li.open{background:var(--open-bg);color:var(--open-ink);--l:var(--open-line)}
+.plist li .s{color:inherit;opacity:.85}
+.plist li.open .s{font-weight:500;opacity:1}
+
+.wk-nav{display:grid;grid-template-columns:48px 1fr 48px;gap:8px;align-items:center;margin-bottom:12px}
+.wk-nav button{min-height:44px;border-radius:10px;border:0;background:var(--soft);font-size:22px}
+.wk-nav .big{text-align:center;font:600 22px/1.1 var(--f-display)}
+.wk{width:100%;border-collapse:separate;border-spacing:4px;table-layout:fixed}
+.wk th{padding:2px 0;text-align:center;font-size:12px;white-space:normal;letter-spacing:.04em}
+.wk th:first-child{width:28%;text-align:left}
+.wk th button{background:none;border:0;padding:4px 0;width:100%;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit}
+.wk th.today button{color:var(--sign);text-decoration:underline}
+.wk td{border:0;padding:0;vertical-align:middle}
+.wk td.who{font-weight:600;font-size:14px;overflow-wrap:anywhere;padding-right:4px}
+.wk tr.mine td.who{color:var(--sign)}
+.cell{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:44px;border:0;border-radius:10px;font:600 17px/1 var(--f-body);box-shadow:inset 0 0 0 1px var(--l)}
+button.cell{cursor:pointer}
+tr.mine .cell{box-shadow:inset 0 0 0 2px var(--l)}
+.cell.yes{background:var(--yes-bg);color:var(--yes-ink);--l:var(--yes-line)}
+.cell.no{background:var(--no-bg);color:var(--no-ink);--l:var(--no-line)}
+.cell.open{background:var(--open-bg);color:var(--open-ink);--l:var(--open-line)}
+.cell.we{background:transparent;box-shadow:none;color:var(--muted)}
+.cell small{font:500 10px/1.2 var(--f-body);opacity:.8;margin-top:2px}
+.wk tr.drv td{padding-top:6px;font-size:13px;text-align:center;color:var(--muted);overflow-wrap:anywhere}
+.wk tr.drv td.who{text-align:left}
+.wk tr.drv b{color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:13px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+.dw{display:grid;gap:8px;margin-top:10px}
+.dw .row{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:center}
+.dw .row b{font:600 18px/1 var(--f-display)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.seg button{min-height:40px;border:0;border-radius:8px;background:var(--soft);font-size:14px;font-weight:500;padding:0 4px}
+.seg button[aria-pressed="true"].y{background:var(--yes-bg);color:var(--yes-ink);box-shadow:inset 0 0 0 2px var(--yes-line)}
+.seg button[aria-pressed="true"].n{background:var(--no-bg);color:var(--no-ink);box-shadow:inset 0 0 0 2px var(--no-line)}
+.seg button[aria-pressed="true"].o{background:var(--open-bg);color:var(--open-ink);box-shadow:inset 0 0 0 2px var(--open-line)}
 .answ{margin-top:12px;font-weight:600;color:var(--warn)}
 .answ.done{color:var(--muted);font-weight:500}
 .yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .btn.yes[aria-pressed="false"],.btn.no[aria-pressed="false"]{background:var(--soft);color:var(--ink);border-color:transparent}
-.btn.no[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.yes[aria-pressed="true"]{background:var(--yes-bg);color:var(--yes-ink);border:2px solid var(--yes-line)}
+.btn.no[aria-pressed="true"]{background:var(--no-bg);color:var(--no-ink);border:2px solid var(--no-line)}
 .groups{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
 .grp{border:0;background:var(--soft);border-radius:14px}
 .grp.cur{background:var(--tint);box-shadow:inset 0 0 0 2px var(--sign)}
@@ -185,10 +230,11 @@ var API=(window.FG_API||'').trim();
 function zero(v){var a=[];for(var i=0;i<N;i++)a.push(v);return a;}
 var $=function(s){return document.querySelector(s);};
 var names=null, noDrive=[], loaded=false, loadFailed=false;
-var entries=[], overrides={}, settings={}, absent={};
+var entries=[], overrides={}, settings={}, absent={}, defaults={}, entryMap={};
+var WD=['Mo','Di','Mi','Do','Fr'];
 var FUELS=['Super E10','Super E5','Diesel','Autogas (LPG)'];
 var tab='start';
-function readHash(){var h=(location.hash||'').replace('#','');tab=(h==='gruppen'||/^p[0-9]$/.test(h))?h:'start';}
+function readHash(){var h=(location.hash||'').replace('#','');tab=(h==='gruppen'||h==='woche'||/^p[0-9]$/.test(h))?h:'start';}
 readHash();
 var store={}, storeJson='', pending=0, busyQ=Promise.resolve();
 var me=null;
@@ -214,13 +260,57 @@ function groupMasks(){var r=[];for(var m=1;m<(1<<N);m++){if(membersOf(m).length>
   r.sort(function(a,b){return membersOf(b).length-membersOf(a).length||a-b;});return r;}
 function label(list){return list.map(nm).join(', ');}
 function drives(i){return noDrive.indexOf(i)<0;}
+function mondayOf(s){var d=parse(s),w=d.getDay();d.setDate(d.getDate()-(w===0?6:w-1));return ymd(d);}
+var wk=mondayOf(sel);
+
+/* ---------- Antworten: ausdrücklich oder aus der Standardwoche ---------- */
+// defaults[p] ist eine Liste von Fassungen {from:'JJJJ-MM-TT', d:[Mo..Fr]} mit 1 = dabei, 0 = nicht dabei, null = offen.
+// Für einen Tag gilt die jüngste Fassung, die an diesem Tag schon galt. So ändern neue Einstellungen keine vergangenen Tage.
+function defAns(date,p){
+  var v=defaults[p]; if(!v||!v.length||weekend(date))return null;
+  var best=null;
+  v.forEach(function(x){if(x&&typeof x.from==='string'&&x.from<=date&&(!best||x.from>=best.from))best=x;});
+  if(!best||!Array.isArray(best.d))return null;
+  var a=best.d[parse(date).getDay()-1];
+  return a===1?'yes':a===0?'no':null;
+}
+function answer(date,p){
+  var e=entryMap[date+'_'+p];
+  if(e)return {a:'yes',def:false,canDrive:e.canDrive};
+  if(absent[date+'_'+p])return {a:'no',def:false};
+  var d=defAns(date,p);
+  return {a:d,def:!!d,canDrive:true};
+}
+function effEntries(){
+  var list=entries.slice(), from=null;
+  for(var p=0;p<N;p++)(defaults[p]||[]).forEach(function(x){if(x&&x.from&&(!from||x.from<from))from=x.from;});
+  if(!from)return list;
+  var today=ymd(new Date()), end=addDays(today,42);
+  [addDays(sel,7),addDays(wk,7)].forEach(function(x){if(x>end)end=x;});
+  for(var d=from,guard=0;d<=end&&guard<1500;d=addDays(d,1),guard++){
+    if(weekend(d))continue;
+    for(var q=0;q<N;q++){
+      if(entryMap[d+'_'+q]||absent[d+'_'+q])continue;
+      if(defAns(d,q)==='yes')list.push({date:d,p:q,canDrive:true,def:true});
+    }
+  }
+  return list;
+}
+// Tippen auf "dabei" oder "nicht dabei": setzt die ausdrückliche Antwort, entfernt die gegenteilige.
+function setAnswer(date,p,want){
+  var ek='entries/'+date+'_'+p, ak='absent/'+date+'_'+p, ops=[];
+  if(want==='yes'){ops.push({op:'set',key:ek,value:{date:date,p:p,canDrive:true}});if(store[ak])ops.push({op:'delete',key:ak});}
+  else if(want==='no'){ops.push({op:'set',key:ak,value:{date:date,p:p}});if(store[ek])ops.push({op:'delete',key:ek});}
+  else{if(store[ek])ops.push({op:'delete',key:ek});if(store[ak])ops.push({op:'delete',key:ak});}
+  if(ops.length)write(ops);
+}
 
 function choose(cands,c,tot,last){
   return cands.slice().sort(function(a,b){return (c[a]-c[b])||(tot[a]-tot[b])||(last[a]-last[b])||(a-b);})[0];
 }
 function simulate(){
   var byDate={};
-  entries.forEach(function(e){
+  effEntries().forEach(function(e){
     if(!(e.p>=0&&e.p<N))return;
     (byDate[e.date]=byDate[e.date]||{})[e.p]=e;
   });
@@ -244,13 +334,17 @@ function simulate(){
     days[date]=info;
   });
   // saved[i]: Tage, an denen i hätte selbst fahren können, aber bei jemand anderem mitgefahren ist
-  var today=ymd(new Date()), shared=0, saved=zero(0);
+  // drove/went: nur vergangene Tage (inkl. heute), damit vorausgefüllte Standardtage die Statistik nicht aufblähen
+  var today=ymd(new Date()), shared=0, saved=zero(0), drove=zero(0), went=zero(0);
   dates.forEach(function(d){var x=days[d];
-    if(d<=today&&x.members.length>=2&&!x.nobody){
-      shared++;
+    if(d>today)return;
+    x.members.forEach(function(i){went[i]++;});
+    if(x.members.length>=2&&!x.nobody){
+      shared++; drove[x.driver]++;
       x.members.forEach(function(i){if(drives(i)&&i!==x.driver)saved[i]++;});
     }});
-  return {days:days,dates:dates,cnt:cnt,tot:tot,last:last,part:part,shared:shared,saved:saved};
+  var past=dates.filter(function(d){return d<=today;});
+  return {days:days,dates:dates,past:past,cnt:cnt,tot:drove,totAll:tot,last:last,part:went,shared:shared,saved:saved};
 }
 
 function setStatus(t){var el=$('#status');if(el)el.textContent=t||'';}
@@ -260,14 +354,16 @@ function fromStore(){
   var cfg=store['config/people'];
   names=(cfg&&Array.isArray(cfg.names)&&cfg.names.length===N)?cfg.names:[];
   noDrive=(cfg&&Array.isArray(cfg.noDrive))?cfg.noDrive.filter(function(i){return i>=0&&i<N;}):[];
-  entries=[]; overrides={}; settings={}; absent={};
+  entries=[]; overrides={}; settings={}; absent={}; defaults={}; entryMap={};
   Object.keys(store).forEach(function(k){
     var x=store[k]||{};
+    if(/^defaults\/[0-9]$/.test(k)&&Array.isArray(x.v))defaults[Number(k.slice(9))]=x.v;
     if(/^settings\/[0-9]$/.test(k))settings[Number(k.slice(9))]=x;
     if(k.indexOf('absent/')===0)absent[k.slice(7)]=true;
     if(k.indexOf('entries/')===0)entries.push({date:String(x.date),p:Number(x.p),canDrive:x.canDrive!==false});
     else if(k.indexOf('overrides/')===0&&typeof x.driver==='number')overrides[k.slice(10)]=x.driver;
   });
+  entries.forEach(function(e){entryMap[e.date+'_'+e.p]=e;});
   loaded=true;
 }
 function takeServer(data){
@@ -324,7 +420,7 @@ function dayHtml(sim){
   var n=info.members.length, today=ymd(new Date());
   var rel=sel===today?'heute':sel===addDays(today,1)?'morgen':sel===addDays(today,-1)?'gestern':'';
   var out=[], open=[];
-  for(var k=0;k<N;k++){if(info.members.indexOf(k)>=0)continue;if(absent[sel+'_'+k])out.push(k);else open.push(k);}
+  for(var k=0;k<N;k++){if(info.members.indexOf(k)>=0)continue;if(answer(sel,k).a==='no')out.push(k);else open.push(k);}
   var sign;
   if(n===0&&open.length===0){
     sign='<div class="sign"><p class="s-top">Keine Fahrt</p><p class="s-big">Alle haben abgesagt</p><p class="s-sub">An diesem Tag fährt niemand mit.</p></div>';
@@ -343,8 +439,9 @@ function dayHtml(sim){
   }
   var pl='';
   for(var i=0;i<N;i++){
-    var inn=info.members.indexOf(i)>=0, isOut=out.indexOf(i)>=0;
+    var inn=info.members.indexOf(i)>=0, isOut=out.indexOf(i)>=0, ans=answer(sel,i);
     var st=inn?(!drives(i)?'✓ dabei, fährt nie':info.canDrive[i]===false?'✓ dabei, fährt nicht':'✓ dabei'):isOut?'✗ abgesagt':'? noch keine Antwort';
+    if(ans.def&&(inn||isOut))st+=' (Standard)';
     pl+='<li class="'+(inn?'in':isOut?'out':'open')+'"><div class="n">'+esc(nm(i))+'</div><div class="s">'+st+'</div></li>';
   }
   var cnt='<p class="answ'+(open.length?'':' done')+'">'+(open.length?(N-open.length)+' von '+N+' haben geantwortet':'Alle '+N+' haben geantwortet')+'</p>';
@@ -353,7 +450,7 @@ function dayHtml(sim){
     acts='<p class="hint">Wähle oben, wer du bist. Dann kannst du für diesen Tag zu- oder absagen.</p>';
   }else{
     var mine=info.members.indexOf(me)>=0, myOut=out.indexOf(me)>=0;
-    var my=entries.filter(function(e){return e.date===sel&&e.p===me;})[0];
+    var my=entryMap[sel+'_'+me];
     acts='<div class="actions"><div class="yn" role="group" aria-label="Deine Antwort für diesen Tag">'
       +'<button class="btn yes" data-act="yes" aria-pressed="'+mine+'">✓ Dabei</button>'
       +'<button class="btn no" data-act="no" aria-pressed="'+myOut+'">✗ Nicht dabei</button></div>';
@@ -378,13 +475,13 @@ function overviewHtml(sim){
   groupMasks().forEach(function(m){
     var mem=membersOf(m), drv=mem.filter(drives);
     if(!drv.length)return;
-    var c=sim.cnt[m]||zero(0), nx=choose(drv,c,sim.tot,sim.last), chips='';
+    var c=sim.cnt[m]||zero(0), nx=choose(drv,c,sim.totAll,sim.last), chips='';
     drv.forEach(function(i){
       chips+='<span class="cc'+(i===nx?' next':'')+'">'+esc(nm(i))+' <span class="num">'+c[i]+'</span>'+(i===nx?' <em>dran</em>':'')+'</span>';
     });
     rows+='<li class="grp'+(m===cur?' cur':'')+'"><div class="gl">'+esc(label(mem))+(m===cur?'<span class="cur-t">gewählter Tag</span>':'')+'</div><div class="gc">'+chips+'</div></li>';
   });
-  return '<section class="card"><h2>Wer ist in welcher Gruppe dran</h2><p class="hint">Jede Zeile ist eine mögliche Gruppe. Die Zahl zeigt, wie oft jemand in genau dieser Gruppe gefahren ist.</p><ul class="groups">'+rows+'</ul></section>';
+  return '<section class="card"><h2>Wer ist in welcher Gruppe dran</h2><p class="hint">Jede Zeile ist eine mögliche Gruppe. Die Zahl zeigt, wie oft jemand in genau dieser Gruppe gefahren ist oder schon eingeplant ist.</p><ul class="groups">'+rows+'</ul></section>';
 }
 
 function totalsHtml(sim){
@@ -431,8 +528,8 @@ function savingsHtml(sim){
 }
 
 function tabsHtml(){
-  var t=[['start','Start'],['gruppen','Gruppen']];
-  for(var i=0;i<N;i++){if(drives(i))t.push(['p'+i,nm(i)]);}
+  var t=[['start','Start'],['woche','Woche'],['gruppen','Gruppen']];
+  for(var i=0;i<N;i++)t.push(['p'+i,nm(i)]);
   return t.map(function(x){
     var meT=(x[0]==='p'+me)?' me-t':'';
     return '<button class="tab'+meT+'" data-act="tab" data-t="'+x[0]+'"'+(tab===x[0]?' aria-current="page"':'')+'>'+esc(x[1])+'</button>';
@@ -440,6 +537,10 @@ function tabsHtml(){
 }
 
 function personHtml(sim,i){
+  if(!drives(i)){
+    return '<section class="card"><h2>'+esc(nm(i))+'</h2><div class="stats"><div><div class="v">'+sim.part[i]+'</div><div class="k">Tage dabei</div></div></div>'
+      +'<p class="hint">'+esc(nm(i))+' fährt nie selbst und spart deshalb kein eigenes Auto ein. Unten lässt sich die Standardwoche festlegen.</p></section>';
+  }
   var s=savOf(sim,i), c=carOf(i);
   var hint=c.own?'Gerechnet mit '+fNum.format(c.l100)+' l auf 100 km ('+esc(c.fuel)+') und '+fNum2.format(c.price)+' € je Liter.'
     :'Noch keine eigenen Angaben. Gerechnet wird vorläufig mit '+fNum.format(L100)+' l auf 100 km und '+fEur.format(PRICE)+' je Liter. Trag unten deine Werte ein.';
@@ -450,7 +551,7 @@ function personHtml(sim,i){
       +'<div><div class="v">'+sim.tot[i]+'</div><div class="k">Mal selbst gefahren</div></div>'
       +'<div><div class="v">'+fNum.format(sim.tot[i]*KM*2)+'</div><div class="k">km selbst gefahren</div></div>'
       +'<div><div class="v">'+sim.part[i]+'</div><div class="k">Tage dabei insgesamt</div></div>'
-    +'</div><p class="hint">Vergangene Tage in Gruppen ab zwei Personen. Bei „selbst gefahren“ zählen auch eingetragene künftige Tage mit.</p></section></div>';
+    +'</div><p class="hint">Gezählt werden Tage bis einschließlich heute, gefahren in Gruppen ab zwei Personen.</p></section></div>';
 }
 
 function carFormHtml(i){
@@ -465,8 +566,62 @@ function carFormHtml(i){
     +'</div><button class="btn" type="submit">Speichern</button><p id="cmsg" class="status" role="alert"></p><p id="cok" class="ok" role="status"></p></form></section>';
 }
 
+function defFormHtml(i){
+  var today=ymd(new Date()), v=defaults[i]||[], cur=null;
+  v.forEach(function(x){if(x&&x.from<=today&&(!cur||x.from>=cur.from))cur=x;});
+  var d=cur&&Array.isArray(cur.d)?cur.d:[null,null,null,null,null], rows='';
+  for(var w=0;w<5;w++){
+    var a=d[w];
+    rows+='<div class="row"><b>'+WD[w]+'</b><div class="seg" role="group" aria-label="'+WD[w]+'">'
+      +'<button type="button" class="y" data-act="dseg" data-v="1" aria-pressed="'+(a===1)+'">✓ Dabei</button>'
+      +'<button type="button" class="n" data-act="dseg" data-v="0" aria-pressed="'+(a===0)+'">✗ Nicht</button>'
+      +'<button type="button" class="o" data-act="dseg" data-v="" aria-pressed="'+(a!==1&&a!==0)+'">? Offen</button>'
+      +'</div></div>';
+  }
+  return '<section class="card"><h2>Standardwoche von '+esc(nm(i))+'</h2><p class="hint">So ist '+esc(nm(i))+' normalerweise dabei. Diese Antworten gelten automatisch für jeden Tag, an dem '+esc(nm(i))+' nicht selbst zu- oder absagt. Ausnahmen wie Urlaub einfach am Tag oder in der Wochenansicht ändern. Bei „Offen“ muss jeden Tag selbst geantwortet werden.</p>'
+    +'<form id="df" class="form" data-p="'+i+'"><div class="dw">'+rows+'</div><button class="btn" type="submit">Standardwoche speichern</button><p id="dok" class="ok" role="status"></p></form></section>';
+}
+
+function weekHtml(sim){
+  var today=ymd(new Date()), days=[];
+  for(var w=0;w<5;w++)days.push(addDays(wk,w));
+  var fW=new Intl.DateTimeFormat('de-DE',{day:'numeric',month:'numeric'});
+  var head='<tr><th></th>'+days.map(function(d,w){
+    return '<th class="'+(d===today?'today':'')+'"><button data-act="gotoday" data-d="'+d+'" aria-label="'+esc(fLong.format(parse(d)))+' öffnen">'+WD[w]+'<br>'+fW.format(parse(d))+'</button></th>';
+  }).join('')+'</tr>';
+  var body='';
+  for(var i=0;i<N;i++){
+    var mine=(i===me);
+    body+='<tr class="'+(mine?'mine':'')+'"><td class="who">'+esc(nm(i))+'</td>';
+    days.forEach(function(d){
+      var x=answer(d,i), cls=x.a==='yes'?'yes':x.a==='no'?'no':'open', sym=x.a==='yes'?'✓':x.a==='no'?'✗':'?';
+      var inner=sym+(x.def?'<small>Standard</small>':'');
+      var lbl=nm(i)+', '+fLong.format(parse(d))+': '+(x.a==='yes'?'dabei':x.a==='no'?'nicht dabei':'keine Antwort')+(x.def?' (Standard)':'');
+      body+='<td>'+(mine?'<button class="cell '+cls+'" data-act="cell" data-d="'+d+'" aria-label="'+esc(lbl)+'. Tippen zum Ändern.">'+inner+'</button>'
+        :'<div class="cell '+cls+'" role="img" aria-label="'+esc(lbl)+'">'+inner+'</div>')+'</td>';
+    });
+    body+='</tr>';
+  }
+  body+='<tr class="drv"><td class="who">Es fährt</td>'+days.map(function(d){
+    var x=sim.days[d], t='–';
+    if(x&&x.members.length>=2&&x.driver!==null)t='<b>'+esc(nm(x.driver))+'</b>';
+    else if(x&&x.solo)t='allein';
+    else if(x&&x.members.length)t='offen';
+    return '<td>'+t+'</td>';
+  }).join('')+'</tr>';
+  var title='KW '+isoWeek(wk)+' · '+fW.format(parse(wk))+' bis '+fW.format(parse(addDays(wk,4)));
+  var hint=me===null?'Wähle auf der Startseite bei „Ich bin“, wer du bist. Dann kannst du hier deine Zeile antippen.'
+    :'Tippe in deiner Zeile ('+esc(nm(me))+') auf einen Tag, um zwischen dabei und nicht dabei zu wechseln. Ein Tipp auf das Datum öffnet den Tag.';
+  return '<section class="card"><div class="wk-nav"><button data-act="wstep" data-d="-1" aria-label="Vorherige Woche">‹</button><div class="big">'+title+'</div><button data-act="wstep" data-d="1" aria-label="Nächste Woche">›</button></div>'
+    +'<div class="pick"><button class="small" data-act="wtoday">Diese Woche</button></div>'
+    +'<div class="tw"><table class="wk">'+head+body+'</table></div>'
+    +'<div class="legend"><span style="--c:var(--yes-bg)">dabei</span><span style="--c:var(--no-bg)">nicht dabei</span><span style="--c:var(--open-bg)">noch keine Antwort</span></div>'
+    +'<p class="hint">'+hint+' „Standard“ heißt: Die Antwort kommt aus der Standardwoche der Person.</p></section>';
+}
+function isoWeek(s){var d=parse(s);d.setDate(d.getDate()+3-((d.getDay()+6)%7));var j=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-j)/864e5-3+((j.getDay()+6)%7))/7);}
+
 function historyHtml(sim){
-  var ds=sim.dates.slice().reverse().slice(0,12), rows='';
+  var ds=sim.past.slice().reverse().slice(0,12), rows='';
   ds.forEach(function(d){
     var x=sim.days[d], who;
     if(x.solo)who=esc(nm(x.driver))+' (allein)';
@@ -479,7 +634,7 @@ function historyHtml(sim){
 }
 
 function rulesHtml(){
-  return '<details class="card"><summary>So wird gerechnet</summary><p class="hint">In jeder Gruppe fährt, wer in genau dieser Gruppe bisher am seltensten gefahren ist. Bei Gleichstand fährt, wer insgesamt weniger gefahren ist, danach wer länger nicht dran war. Wer eingetragen ist, aber nicht fahren kann, behält seinen Rückstand und ist beim nächsten Mal in dieser Gruppe wieder vorn. Wer im Urlaub ist, trägt sich nicht ein und kommt in keiner Gruppe vor. Wer als „fährt nie“ markiert ist, fährt immer nur mit und wird bei der Reihenfolge nicht berücksichtigt. Einzelfahrten zählen nicht. Wird ein früherer Tag nachträglich geändert, werden spätere Tage neu gerechnet.</p></details>';
+  return '<details class="card"><summary>So wird gerechnet</summary><p class="hint">In jeder Gruppe fährt, wer in genau dieser Gruppe bisher am seltensten gefahren ist. Bei Gleichstand fährt, wer insgesamt weniger gefahren ist, danach wer länger nicht dran war. Wer eingetragen ist, aber nicht fahren kann, behält seinen Rückstand und ist beim nächsten Mal in dieser Gruppe wieder vorn. Wer im Urlaub ist, sagt ab und kommt an diesem Tag in keiner Gruppe vor. Wer eine Standardwoche festgelegt hat, gilt an diesen Tagen automatisch als dabei oder nicht dabei, bis er für den Tag selbst antwortet. Die Gruppenübersicht zählt bereits geplante Tage mit. Wer als „fährt nie“ markiert ist, fährt immer nur mit und wird bei der Reihenfolge nicht berücksichtigt. Einzelfahrten zählen nicht. Wird ein früherer Tag nachträglich geändert, werden spätere Tage neu gerechnet.</p></details>';
 }
 
 function formHtml(first){
@@ -494,12 +649,12 @@ function formHtml(first){
 var lastSetupKey='', lastKind=null;
 function renderSetup(kind){
   var p=/^p[0-9]$/.test(kind)?Number(kind.slice(1)):-1;
-  var key=kind+'|'+(names||[]).join('|')+'|'+noDrive.join(',')+(p>=0?'|'+JSON.stringify(settings[p]||{}):'');
+  var key=kind+'|'+(names||[]).join('|')+'|'+noDrive.join(',')+(p>=0?'|'+JSON.stringify(settings[p]||{})+'|'+JSON.stringify(defaults[p]||[]):'');
   var el=$('#setup');
   if(key===lastSetupKey)return;
   if(kind===lastKind&&el.contains(document.activeElement))return;
   lastSetupKey=key; lastKind=kind;
-  el.innerHTML=kind==='first'?formHtml(true):kind==='start'?formHtml(false):p>=0?carFormHtml(p):'';
+  el.innerHTML=kind==='first'?formHtml(true):kind==='start'?formHtml(false):p>=0?('<div class="wrap" style="gap:16px">'+defFormHtml(p)+(drives(p)?carFormHtml(p):'')+'</div>'):'';
 }
 
 function render(){
@@ -515,11 +670,12 @@ function render(){
   var first=!names||names.length!==N;
   var nav=$('#tabs');
   if(first){nav.hidden=true;main.innerHTML='';renderSetup('first');return;}
-  if(/^p[0-9]$/.test(tab)&&!drives(Number(tab.slice(1))))tab='start';
   nav.hidden=false; nav.innerHTML=tabsHtml();
   var ae=document.activeElement, keepId=ae&&main.contains(ae)?ae.id:'';
   var sim=simulate();
-  if(tab==='gruppen'){
+  if(tab==='woche'){
+    main.innerHTML=meHtml()+weekHtml(sim);
+  }else if(tab==='gruppen'){
     main.innerHTML=overviewHtml(sim);
   }else if(tab.charAt(0)==='p'){
     main.innerHTML=personHtml(sim,Number(tab.slice(1)));
@@ -547,16 +703,22 @@ document.addEventListener('click',function(e){
   else if(a==='step'){sel=stepWork(sel,parseInt(t.getAttribute('data-d'),10));render();}
   else if(a==='today'){sel=ymd(new Date());render();}
   else if((a==='yes'||a==='no')&&me!==null){
-    // Erneutes Tippen auf die aktive Antwort nimmt sie zurück.
-    var ek='entries/'+sel+'_'+me, ak='absent/'+sel+'_'+me, ops=[];
-    if(a==='yes'){
-      if(store[ek])ops.push({op:'delete',key:ek});
-      else{ops.push({op:'set',key:ek,value:{date:sel,p:me,canDrive:true}});if(store[ak])ops.push({op:'delete',key:ak});}
-    }else{
-      if(store[ak])ops.push({op:'delete',key:ak});
-      else{ops.push({op:'set',key:ak,value:{date:sel,p:me}});if(store[ek])ops.push({op:'delete',key:ek});}
-    }
-    write(ops);
+    // Erneutes Tippen auf eine eigene Antwort nimmt sie zurück, dann gilt wieder die Standardwoche.
+    var cur=answer(sel,me);
+    if(cur.a===a){if(!cur.def)setAnswer(sel,me,null);}
+    else setAnswer(sel,me,a);
+  }
+  else if(a==='wstep'){wk=addDays(wk,7*parseInt(t.getAttribute('data-d'),10));render();}
+  else if(a==='wtoday'){wk=mondayOf(ymd(new Date()));render();}
+  else if(a==='gotoday'){sel=t.getAttribute('data-d');goTab('start');}
+  else if(a==='cell'&&me!==null){
+    var d=t.getAttribute('data-d'), c2=answer(d,me);
+    setAnswer(d,me,c2.a==='yes'?'no':'yes');
+  }
+  else if(a==='dseg'){
+    var row=t.closest('.seg');
+    row.querySelectorAll('button').forEach(function(b){b.setAttribute('aria-pressed',String(b===t));});
+    var okd=$('#dok'); if(okd)okd.textContent='';
   }
 });
 document.addEventListener('change',function(e){
@@ -569,6 +731,22 @@ document.addEventListener('change',function(e){
     if(t.value==='')write([{op:'delete',key:k}]);
     else write([{op:'set',key:k,value:{date:sel,driver:parseInt(t.value,10)}}]);
   }
+});
+document.addEventListener('submit',function(e){
+  if(e.target.id!=='df')return;
+  e.preventDefault();
+  var p=Number(e.target.getAttribute('data-p')), d=[];
+  e.target.querySelectorAll('.seg').forEach(function(row){
+    var b=row.querySelector('[aria-pressed="true"]'), v=b?b.getAttribute('data-v'):'';
+    d.push(v==='1'?1:v==='0'?0:null);
+  });
+  var today=ymd(new Date());
+  var v=(defaults[p]||[]).filter(function(x){return x&&x.from<today;}).slice(-20);
+  v.push({from:today,d:d});
+  write([{op:'set',key:'defaults/'+p,value:{v:v}}]);
+  lastSetupKey='';
+  renderSetup(tab);
+  var ok=$('#dok'); if(ok)ok.textContent='Gespeichert. Gilt ab heute für alle Tage, an denen '+nm(p)+' noch nicht selbst geantwortet hat.';
 });
 document.addEventListener('submit',function(e){
   if(e.target.id!=='cf')return;
